@@ -21,8 +21,13 @@ class UNet(nn.Module):
         self.up3 = (Up(256, 128 // factor, bilinear))
         self.up4 = (Up(128, 64, bilinear))
         self.outc = (OutConv(64, n_classes))
+        # 64 -> RGB
+        self.out_img = (OutConv(64, 3))
 
-    def forward(self, x):
+    '''
+        seg_task: if backbone1 seg_task=True
+    '''
+    def forward(self, x, seg_task=True):
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -32,8 +37,11 @@ class UNet(nn.Module):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
-        logits = self.outc(x)
-        return logits
+        
+        if seg_task:
+            return self.outc(x)
+        else: 
+            return self.out_img(x)
 
     def use_checkpointing(self):
         self.inc = torch.utils.checkpoint(self.inc)
