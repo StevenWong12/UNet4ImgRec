@@ -4,10 +4,13 @@ from .unet_parts import *
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, bilinear=False):
+    '''
+        seg_task: if backbone1 seg_task=True
+    '''
+    def __init__(self, n_channels, seg_task=True, bilinear=False):
         super(UNet, self).__init__()
         self.n_channels = n_channels
-        self.n_classes = 1
+        self.out_channels = 1 if seg_task else 3
         self.bilinear = bilinear
 
         self.inc = (DoubleConv(n_channels, 64))
@@ -20,14 +23,9 @@ class UNet(nn.Module):
         self.up2 = (Up(512, 256 // factor, bilinear))
         self.up3 = (Up(256, 128 // factor, bilinear))
         self.up4 = (Up(128, 64, bilinear))
-        self.outc = (OutConv(64, self.n_classes))
-        # 64 -> RGB
-        self.out_img = (OutConv(64, 3))
+        self.outc = (OutConv(64, self.out_channels))
 
-    '''
-        seg_task: if backbone1 seg_task=True
-    '''
-    def forward(self, x, seg_task=True):
+    def forward(self, x):
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -38,10 +36,7 @@ class UNet(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         
-        if seg_task:
-            return self.outc(x)
-        else: 
-            return self.out_img(x)
+        return self.outc(x)
 
     def use_checkpointing(self):
         self.inc = torch.utils.checkpoint(self.inc)
